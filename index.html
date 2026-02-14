@@ -1,0 +1,280 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>demo</title>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Special+Elite&display=swap');
+
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+
+      body {
+        overflow: hidden;
+        background: #000;
+        font-family: 'Special Elite', 'Courier New', monospace;
+      }
+
+      /* ===== INTRO ===== */
+      #intro-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 100;
+        background: #000;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+      }
+      #intro-prompt {
+        font-size: clamp(0.9rem, 2vw, 1.3rem);
+        color: #444;
+        letter-spacing: 0.3em;
+        text-transform: uppercase;
+        transition: opacity 0.8s ease;
+        animation: promptPulse 2.5s ease-in-out infinite;
+      }
+      @keyframes promptPulse {
+        0%, 100% { opacity: 0.3; }
+        50% { opacity: 0.7; }
+      }
+      #intro-overlay .intro-line {
+        opacity: 0;
+        transition: opacity 2s ease;
+      }
+      #intro-line-1 {
+        font-size: clamp(1.5rem, 4vw, 2.8rem);
+        color: rgba(200, 200, 200, 0.5);
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+      }
+      #intro-line-2 {
+        font-size: clamp(0.9rem, 2vw, 1.4rem);
+        color: rgba(150, 150, 150, 0.3);
+        margin-top: 18px;
+        letter-spacing: 0.12em;
+        font-style: italic;
+      }
+      #intro-line-3 {
+        font-size: clamp(2rem, 5vw, 4rem);
+        color: rgba(220, 220, 220, 0.6);
+        margin-top: 50px;
+        letter-spacing: 0.4em;
+      }
+      #intro-line-4 {
+        font-size: 2.7rem;
+        color: rgba(100, 100, 100, 0.25);
+        margin-top: 14px;
+        letter-spacing: 0.8em;
+        transition: opacity 1.5s ease;
+      }
+
+      /* ===== HUD ===== */
+      #hud {
+        position: fixed;
+        inset: 0;
+        z-index: 20;
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity 1.5s ease;
+      }
+
+      /* Sanity container */
+      .sanity-wrap {
+        position: absolute;
+        bottom: 8vh;
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+      }
+      .sanity-label {
+        font-size: 10px;
+        letter-spacing: 0.5em;
+        color: rgba(200, 120, 220, 0.4);
+        text-transform: uppercase;
+        text-shadow: 0 0 12px rgba(180, 60, 200, 0.15);
+      }
+      .sanity-track {
+        width: 220px;
+        height: 3px;
+        background: rgba(255, 255, 255, 0.03);
+        border-radius: 2px;
+        overflow: hidden;
+        position: relative;
+        border: 1px solid rgba(150, 80, 180, 0.08);
+      }
+      .sanity-fill {
+        height: 100%;
+        width: 100%;
+        background: linear-gradient(90deg, #2a0030, #7a1a8a, #b040c0, #d060e0);
+        border-radius: 2px;
+        transition: width 0.4s ease;
+        box-shadow: 0 0 12px rgba(180, 60, 200, 0.4), 0 0 4px rgba(220, 100, 255, 0.2);
+      }
+      .sanity-number {
+        font-size: 12px;
+        color: rgba(200, 150, 230, 0.2);
+        letter-spacing: 0.2em;
+      }
+
+      /* Location */
+      .location-text {
+        position: absolute;
+        top: 7vh;
+        left: 24px;
+        font-size: 9px;
+        letter-spacing: 0.4em;
+        color: rgba(180, 160, 140, 0.2);
+        text-transform: uppercase;
+      }
+
+      /* Crosshair */
+      .crosshair {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 3px;
+        height: 3px;
+        border-radius: 50%;
+        background: rgba(200, 180, 150, 0.08);
+      }
+
+      /* ===== ENDING ===== */
+      #ending-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 200;
+        background: rgba(255,255,255,0);
+        display: none;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        transition: background 4s ease;
+      }
+      #ending-line-1 {
+        font-size: clamp(1.4rem, 3.5vw, 2.4rem);
+        color: #1a1a1a;
+        opacity: 0;
+        transition: opacity 4s ease;
+        text-align: center;
+        padding: 0 40px;
+        letter-spacing: 0.2em;
+        text-shadow: 0 0 40px rgba(0, 0, 0, 0.1);
+      }
+      #ending-line-2 {
+        font-size: clamp(0.7rem, 1.4vw, 1rem);
+        color: #aaa;
+        opacity: 0;
+        transition: opacity 4s ease;
+        margin-top: 50px;
+        text-align: center;
+        padding: 0 40px;
+        letter-spacing: 0.15em;
+        font-style: italic;
+      }
+
+      /* ===== DREAD OVERLAY ===== */
+      #dread-darken {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0);
+        z-index: 40;
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity 1.2s ease;
+      }
+      @keyframes dreadFadeIn {
+        0% { opacity: 0; }
+        100% { opacity: 1; }
+      }
+      @keyframes dreadFadeOut {
+        0% { opacity: 1; }
+        100% { opacity: 0; }
+      }
+      .dread-animate-in {
+        animation: dreadFadeIn 1.5s ease forwards;
+      }
+      .dread-animate-out {
+        animation: dreadFadeOut 3s ease forwards;
+      }
+      #dread-overlay {
+        position: fixed;
+        top: 50%;
+        left: 0;
+        right: 0;
+        transform: translateY(-50%);
+        text-align: center;
+        pointer-events: none;
+        z-index: 55;
+        font-family: 'Special Elite', 'Courier New', monospace;
+        font-size: clamp(1.4rem, 3vw, 2.4rem);
+        font-weight: normal;
+        color: #d0d0d0;
+        opacity: 0;
+        letter-spacing: 0.08em;
+        line-height: 1.5;
+        padding: 0 10%;
+      }
+
+      /* ===== LETTERBOX ===== */
+      .letterbox {
+        position: fixed;
+        left: 0;
+        right: 0;
+        height: 6vh;
+        background: #000;
+        z-index: 10;
+        pointer-events: none;
+      }
+      .letterbox-top { top: 0; }
+      .letterbox-bottom { bottom: 0; }
+    </style>
+  </head>
+  <body>
+    <canvas style="width: 100vw; height: 100vh" id="renderCanvas"></canvas>
+
+    <!-- Letterbox -->
+    <div class="letterbox letterbox-top"></div>
+    <div class="letterbox letterbox-bottom"></div>
+
+    <!-- HUD -->
+    <div id="hud">
+      <div class="sanity-wrap">
+        <div class="sanity-label">sanity</div>
+        <div class="sanity-track">
+          <div class="sanity-fill" id="sanity-bar"></div>
+        </div>
+        <div class="sanity-number" id="sanity-text">100</div>
+      </div>
+      <div class="location-text">The Dungeon</div>
+      <div class="crosshair"></div>
+    </div>
+
+    <!-- Intro -->
+    <div id="intro-overlay">
+      <div id="intro-prompt">CLICK TO BEGIN</div>
+      <div id="intro-line-1" class="intro-line">YOU ARE NOT SPECIAL</div>
+      <div id="intro-line-2" class="intro-line" style="visibility:hidden">NEITHER AM I</div>
+      <div id="intro-line-3" class="intro-line" style="visibility:hidden">WALK.</div>
+      <div id="intro-line-4" class="intro-line" style="visibility:hidden">W A S D</div>
+    </div>
+
+    <!-- Ending -->
+    <div id="ending-overlay">
+      <div id="ending-line-1">WAS ANY OF THIS REAL? WERE YOU?</div>
+      <div id="ending-line-2">REFRESH TO TRY AGAIN. BUT WHY WOULD YOU?</div>
+    </div>
+
+    <!-- Dread -->
+    <div id="dread-darken"></div>
+    <div id="dread-overlay"></div>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
