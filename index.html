@@ -84,7 +84,7 @@
       /* Sanity container */
       .sanity-wrap {
         position: absolute;
-        bottom: 8vh;
+        top: 8vh;
         left: 50%;
         transform: translateX(-50%);
         display: flex;
@@ -145,6 +145,70 @@
         background: rgba(200, 180, 150, 0.08);
       }
 
+      /* Orb counter */
+      .orb-counter {
+        position: absolute;
+        top: 8vh;
+        right: 24px;
+        font-size: 14px;
+        letter-spacing: 0.3em;
+        color: rgba(200, 140, 255, 0.85);
+        text-transform: uppercase;
+        text-shadow: 0 0 12px rgba(160, 80, 255, 0.4);
+      }
+      .orb-counter::before {
+        content: '◆ ';
+        color: rgba(180, 100, 255, 0.9);
+        text-shadow: 0 0 8px rgba(160, 80, 255, 0.6);
+      }
+
+      /* ===== CONTROLS HINT ===== */
+      .controls-hint {
+        position: absolute;
+        bottom: 14vh;
+        left: 50%;
+        transform: translateX(-50%);
+        font-size: 9px;
+        letter-spacing: 0.6em;
+        color: rgba(180, 160, 140, 0.25);
+        text-transform: uppercase;
+        transition: opacity 8s ease;
+      }
+
+      /* ===== WIN OVERLAY ===== */
+      #win-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 200;
+        background: rgba(0,0,0,0);
+        display: none;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        transition: background 4s ease;
+      }
+      #win-line-1 {
+        font-size: clamp(1.4rem, 3.5vw, 2.4rem);
+        color: rgba(100, 255, 140, 0.8);
+        opacity: 0;
+        transition: opacity 4s ease;
+        text-align: center;
+        padding: 0 40px;
+        letter-spacing: 0.2em;
+        text-shadow: 0 0 40px rgba(80, 220, 120, 0.3);
+      }
+      #win-line-2 {
+        font-size: clamp(0.7rem, 1.4vw, 1rem);
+        color: #666;
+        opacity: 0;
+        transition: opacity 4s ease;
+        margin-top: 50px;
+        text-align: center;
+        padding: 0 40px;
+        letter-spacing: 0.15em;
+        font-style: italic;
+      }
+
       /* ===== ENDING ===== */
       #ending-overlay {
         position: fixed;
@@ -183,43 +247,56 @@
       #dread-darken {
         position: fixed;
         inset: 0;
-        background: rgba(0, 0, 0, 0);
+        background: rgba(0,0,0,0);
         z-index: 40;
         pointer-events: none;
         opacity: 0;
-        transition: opacity 1.2s ease;
+        transition: opacity 2s ease;
       }
-      @keyframes dreadFadeIn {
-        0% { opacity: 0; }
-        100% { opacity: 1; }
-      }
-      @keyframes dreadFadeOut {
-        0% { opacity: 1; }
-        100% { opacity: 0; }
-      }
-      .dread-animate-in {
-        animation: dreadFadeIn 1.5s ease forwards;
-      }
-      .dread-animate-out {
-        animation: dreadFadeOut 3s ease forwards;
-      }
+
       #dread-overlay {
         position: fixed;
-        top: 50%;
+        bottom: 0;
         left: 0;
         right: 0;
-        transform: translateY(-50%);
-        text-align: center;
+        height: 35vh;
         pointer-events: none;
         z-index: 55;
-        font-family: 'Special Elite', 'Courier New', monospace;
-        font-size: clamp(1.4rem, 3vw, 2.4rem);
-        font-weight: normal;
-        color: #d0d0d0;
         opacity: 0;
-        letter-spacing: 0.08em;
-        line-height: 1.5;
-        padding: 0 10%;
+        background: rgba(0,0,0,0.6);
+        /* background: linear-gradient(0deg, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.6) 70%, rgba(0,0,0,0) 100%); */
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        transition: opacity 2s ease;
+      }
+      #dread-overlay .narrator-name {
+        font-family: 'Special Elite', 'Courier New', monospace;
+        font-size: 11px;
+        letter-spacing: 0.8em;
+        text-transform: uppercase;
+        color: rgba(120, 50, 50, 0);
+        margin-bottom: 24px;
+        transition: color 3s ease;
+      }
+      #dread-overlay .narrator-text {
+        font-family: 'Special Elite', 'Courier New', monospace;
+        font-size: clamp(1.6rem, 3.5vw, 2.8rem);
+        color: rgba(220, 215, 210, 0.95);
+        letter-spacing: 0.15em;
+        line-height: 1.8;
+        text-align: center;
+        max-width: 70vw;
+        text-shadow: 0 0 30px rgba(255, 255, 255, 0.08);
+      }
+
+      .dread-visible {
+        opacity: 1 !important;
+        transition: opacity 1.5s ease !important;
+      }
+      .dread-visible .narrator-name {
+        color: rgba(160, 60, 60, 0.6) !important;
       }
 
       /* ===== LETTERBOX ===== */
@@ -254,15 +331,12 @@
       </div>
       <div class="location-text">The Dungeon</div>
       <div class="crosshair"></div>
+      <div class="orb-counter" id="orb-counter">12</div>
     </div>
 
     <!-- Intro -->
     <div id="intro-overlay">
       <div id="intro-prompt">CLICK TO BEGIN</div>
-      <div id="intro-line-1" class="intro-line">YOU ARE NOT SPECIAL</div>
-      <div id="intro-line-2" class="intro-line" style="visibility:hidden">NEITHER AM I</div>
-      <div id="intro-line-3" class="intro-line" style="visibility:hidden">WALK.</div>
-      <div id="intro-line-4" class="intro-line" style="visibility:hidden">W A S D</div>
     </div>
 
     <!-- Ending -->
@@ -271,9 +345,18 @@
       <div id="ending-line-2">REFRESH TO TRY AGAIN. BUT WHY WOULD YOU?</div>
     </div>
 
+    <!-- Win -->
+    <div id="win-overlay">
+      <div id="win-line-1">YOU FOUND THE EXIT.</div>
+      <div id="win-line-2">BUT DID YOU ESCAPE YOURSELF?</div>
+    </div>
+
     <!-- Dread -->
     <div id="dread-darken"></div>
-    <div id="dread-overlay"></div>
+    <div id="dread-overlay">
+      <div class="narrator-name">THE HOLLOW VOICE</div>
+      <div class="narrator-text" id="dread-text"></div>
+    </div>
 
     <script type="module" src="/src/main.ts"></script>
   </body>
