@@ -12,10 +12,6 @@ import {
   PointLight,
   DefaultRenderingPipeline,
   Sound,
-  GlowLayer,
-  ParticleSystem,
-  ShadowGenerator,
-  MeshBuilder,
   StandardMaterial,
   PBRMaterial,
 } from "@babylonjs/core";
@@ -57,114 +53,31 @@ const bgMusic = new Sound("bgMusic", "/bg_music.mp3", scene, null, {
 });
 
 // ========== LIGHTS ==========
-// Dim ambient — just enough so you can sense walls in the dark
+// Dim ambient — reduce again since torch is back
 const light = new HemisphericLight("light", Vector3.Up(), scene);
-light.intensity = 0.06;
+light.intensity = 0.1;
 light.diffuse = new Color3(0.12, 0.06, 0.05);
 light.groundColor = new Color3(0.01, 0.005, 0.01);
 
-// Torch — warm, your main light source
-const torchLight = new PointLight("torch", new Vector3(0, 2, 0), scene);
-torchLight.diffuse = new Color3(1.0, 0.55, 0.2);
-torchLight.intensity = 1.4;
-torchLight.range = 9;
-
-// Cold rim light behind player — gives creepy edge lighting
 const coldFill = new PointLight("coldFill", new Vector3(0, 3, -2), scene);
 coldFill.diffuse = new Color3(0.12, 0.08, 0.2);
-coldFill.intensity = 0.25;
+coldFill.intensity = 0.4;
 coldFill.range = 5;
 
+// Torch — warm, your main light source (RESTORED)
+const torchLight = new PointLight("torch", new Vector3(0, 2, 0), scene);
+torchLight.diffuse = new Color3(1.0, 0.55, 0.2);
+torchLight.intensity = 3.0; // Bright to start
+torchLight.range = 15;
+
 // Shadows
-const shadowGen = new ShadowGenerator(512, torchLight);
-shadowGen.useBlurExponentialShadowMap = true;
-shadowGen.blurKernel = 16;
-shadowGen.darkness = 0.75;
 
 // ========== HORROR ATMOSPHERE ==========
 scene.clearColor = new Color4(0, 0, 0, 1);
 scene.ambientColor = new Color3(0.008, 0.004, 0.008);
 scene.fogMode = Scene.FOGMODE_EXP2;
-scene.fogColor = new Color3(0.003, 0.001, 0.0);
-scene.fogDensity = 0.025;
-
-// Glow — only for portal, excluded from character
-const glow = new GlowLayer("glow", scene, {
-  mainTextureSamples: 1,
-  mainTextureFixedSize: 256,
-});
-glow.intensity = 0.6;
-
-// ========== EXIT PORTAL ==========
-const EXIT_POS = new Vector3(60, 0.5, 60);
-
-// Outer ring
-const portalMesh = MeshBuilder.CreateTorus(
-  "exitPortal",
-  { diameter: 3, thickness: 0.25, tessellation: 24 },
-  scene,
-);
-portalMesh.position = EXIT_POS.clone();
-portalMesh.rotation.x = Math.PI / 2;
-
-const portalMat = new StandardMaterial("portalMat", scene);
-portalMat.emissiveColor = new Color3(0.15, 0.9, 0.35);
-portalMat.diffuseColor = new Color3(0, 0, 0);
-portalMat.alpha = 0.9;
-portalMesh.material = portalMat;
-
-// Inner ring — counter-rotating
-const portalInner = MeshBuilder.CreateTorus(
-  "exitPortalInner",
-  { diameter: 2, thickness: 0.15, tessellation: 24 },
-  scene,
-);
-portalInner.position = EXIT_POS.clone();
-portalInner.rotation.x = Math.PI / 2;
-const portalInnerMat = new StandardMaterial("portalInnerMat", scene);
-portalInnerMat.emissiveColor = new Color3(0.4, 1.0, 0.6);
-portalInnerMat.diffuseColor = new Color3(0, 0, 0);
-portalInnerMat.alpha = 0.7;
-portalInner.material = portalInnerMat;
-
-// Portal light
-const portalLight = new PointLight("portalLight", EXIT_POS.clone(), scene);
-portalLight.position.y = 1.5;
-portalLight.diffuse = new Color3(0.2, 1.0, 0.4);
-portalLight.intensity = 3;
-portalLight.range = 15;
-
-// Freeze portal materials — they never change
-portalMat.freeze();
-portalInnerMat.freeze();
-
-// Only glow the portal meshes, not the character
-glow.addIncludedOnlyMesh(portalMesh);
-glow.addIncludedOnlyMesh(portalInner);
-
-// Portal particles
-const portalParticles = new ParticleSystem("portalParts", 80, scene);
-portalParticles.createPointEmitter(
-  new Vector3(-0.8, 0, -0.8),
-  new Vector3(0.8, 0, 0.8),
-);
-portalParticles.emitter = EXIT_POS.clone();
-portalParticles.minSize = 0.05;
-portalParticles.maxSize = 0.2;
-portalParticles.minLifeTime = 0.8;
-portalParticles.maxLifeTime = 2.5;
-portalParticles.emitRate = 25;
-portalParticles.minEmitPower = 0.2;
-portalParticles.maxEmitPower = 0.6;
-portalParticles.direction1 = new Vector3(-0.3, 1, -0.3);
-portalParticles.direction2 = new Vector3(0.3, 2.5, 0.3);
-portalParticles.gravity = new Vector3(0, 0.5, 0);
-portalParticles.color1 = new Color4(0.1, 1.0, 0.4, 0.6);
-portalParticles.color2 = new Color4(0.3, 0.8, 0.5, 0.3);
-portalParticles.colorDead = new Color4(0, 0.2, 0.05, 0);
-portalParticles.blendMode = ParticleSystem.BLENDMODE_ADD;
-portalParticles.updateSpeed = 0.01;
-portalParticles.start();
+scene.fogColor = new Color3(0.002, 0.001, 0.002);
+scene.fogDensity = 0.025; // Atmospheric but visible
 
 // ========== POST PROCESSING ==========
 const pipeline = new DefaultRenderingPipeline("horrorPipeline", true, scene, [
@@ -177,27 +90,28 @@ pipeline.bloomWeight = 0.35;
 pipeline.bloomKernel = 32;
 // Film grain — subtle at start, escalates with sanity loss
 pipeline.grainEnabled = true;
-pipeline.grain.intensity = 3;
+pipeline.grain.intensity = 5;
 pipeline.grain.animated = true;
 // Color grading — cinematic, clean at full sanity
 pipeline.imageProcessingEnabled = true;
 pipeline.imageProcessing.vignetteEnabled = true;
-pipeline.imageProcessing.vignetteWeight = 3;
-pipeline.imageProcessing.vignetteStretch = 0.5;
+pipeline.imageProcessing.vignetteEnabled = true;
+pipeline.imageProcessing.vignetteWeight = 5;
+pipeline.imageProcessing.vignetteStretch = 3;
 pipeline.imageProcessing.vignetteColor = new Color4(0, 0, 0, 0);
 pipeline.imageProcessing.contrast = 1.3;
-pipeline.imageProcessing.exposure = 0.85;
+pipeline.imageProcessing.exposure = 1.1;
 pipeline.imageProcessing.toneMappingEnabled = true;
 // Depth of field — subtle, cinematic
 pipeline.depthOfFieldEnabled = true;
-pipeline.depthOfField.focalLength = 60;
-pipeline.depthOfField.fStop = 3.5;
-pipeline.depthOfField.focusDistance = 2500;
+pipeline.depthOfField.focalLength = 35; // Wider feel but focused
+pipeline.depthOfField.fStop = 2.0;
+pipeline.depthOfField.focusDistance = 4000;
 pipeline.depthOfFieldBlurLevel = 1;
 // Chromatic aberration — starts at ZERO, only kicks in as sanity drops
 pipeline.chromaticAberrationEnabled = true;
 pipeline.chromaticAberration.aberrationAmount = 0;
-pipeline.chromaticAberration.radialIntensity = 0.8;
+pipeline.chromaticAberration.radialIntensity = 1.5;
 
 // ========== INPUT ==========
 const keySet = new Set<string>();
@@ -208,6 +122,74 @@ scene.onKeyboardObservable.add((keys) => {
     keySet.delete(keys.event.code);
   }
 });
+
+// Joystick Input
+const joystickZone = document.getElementById("joystick-zone");
+const joystickKnob = document.getElementById("joystick-knob");
+let joystickVec = new Vector3(0, 0, 0);
+let isJoystickActive = false;
+
+if (joystickZone && joystickKnob) {
+  const maxRadius = 35; // Max drag distance
+
+  joystickZone.addEventListener(
+    "touchstart",
+    (e) => {
+      isJoystickActive = true;
+      handleJoystickMove(e.touches[0]);
+    },
+    { passive: false },
+  );
+
+  joystickZone.addEventListener(
+    "touchmove",
+    (e) => {
+      if (isJoystickActive) {
+        e.preventDefault(); // Prevent scrolling
+        handleJoystickMove(e.touches[0]);
+      }
+    },
+    { passive: false },
+  );
+
+  const endJoystick = () => {
+    isJoystickActive = false;
+    joystickVec.set(0, 0, 0);
+    joystickKnob.style.transform = `translate(-50%, -50%)`;
+  };
+
+  joystickZone.addEventListener("touchend", endJoystick);
+  joystickZone.addEventListener("touchcancel", endJoystick);
+
+  function handleJoystickMove(touch: Touch) {
+    const rect = joystickZone!.getBoundingClientRect();
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+
+    let dx = touch.clientX - centerX;
+    let dy = touch.clientY - centerY;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+
+    // Claud input to max radius
+    if (dist > maxRadius) {
+      const scale = maxRadius / dist;
+      dx *= scale;
+      dy *= scale;
+    }
+
+    // Move knob visual
+    joystickKnob!.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
+
+    // Map to movement vector (normalized -1 to 1)
+    // Note: In screen space +Y is down, but in 3D +Z is forward.
+    // Usually Forward (W) is -Y screen. Back (S) is +Y screen.
+    // Right (D) is +X screen. Left (A) is -X screen.
+    const inputX = dx / maxRadius;
+    const inputY = -(dy / maxRadius); // Invert Y for forward/back
+
+    joystickVec.set(inputX, 0, inputY);
+  }
+}
 
 // ========== LOAD MODELS ==========
 const { meshes, animationGroups } = await ImportMeshAsync("/woman.glb", scene);
@@ -225,9 +207,16 @@ const TILE_W = (hierBounds.max.x - hierBounds.min.x) * 0.88;
 const TILE_D = (hierBounds.max.z - hierBounds.min.z) * 0.88;
 console.log("Dungeon tile size:", TILE_W, "x", TILE_D);
 
-// Enable collisions on original dungeon meshes
+// Enable collisions and force opaque materials on original dungeon meshes
 dungeonMeshes.forEach((m) => {
   m.checkCollisions = true;
+  m.renderingGroupId = 0; // Ensure background
+  if (m.material) {
+    // Force opaque to ensure proper depth writing (hides orbs behind walls)
+    m.material.transparencyMode = 0; // OPAQUE
+    m.material.backFaceCulling = true;
+    m.material.forceDepthWrite = true;
+  }
 });
 
 const GRID_HALF = 4;
@@ -241,97 +230,18 @@ for (let x = -GRID_HALF; x <= GRID_HALF; x++) {
       // Enable collisions on instanced tiles
       inst.getChildMeshes().forEach((child) => {
         child.checkCollisions = true;
+        child.renderingGroupId = 0;
+        // Material changes propogate from original mesh, but just to be safe/clear
       });
     }
   }
 }
 
-// ========== SANITY ORBS ==========
-const SANITY_RESTORE = 15;
-const ORB_PICKUP_DIST = 2.5;
-
-interface OrbData {
-  mesh: ReturnType<typeof MeshBuilder.CreateIcoSphere>;
-  light: PointLight;
-  particles: ParticleSystem;
-  baseX: number;
-  baseZ: number;
-}
-const orbs: OrbData[] = [];
-
-const orbMat = new StandardMaterial("orbMat", scene);
-orbMat.emissiveColor = new Color3(0.3, 0.85, 1.0);
-orbMat.diffuseColor = new Color3(0, 0, 0);
-orbMat.alpha = 0.6;
-
-// Scatter orbs near player start
-const orbPositions = [
-  new Vector3(4, 0.8, 6),
-  new Vector3(-5, 0.8, 3),
-  new Vector3(7, 0.8, -4),
-  new Vector3(-3, 0.8, -7),
-  new Vector3(10, 0.8, 2),
-  new Vector3(-8, 0.8, 8),
-  new Vector3(3, 0.8, 12),
-  new Vector3(-6, 0.8, -3),
-  new Vector3(12, 0.8, 8),
-  new Vector3(-2, 0.8, 15),
-  new Vector3(8, 0.8, -10),
-  new Vector3(15, 0.8, 5),
-];
-
-orbPositions.forEach((pos, i) => {
-  const orb = MeshBuilder.CreateIcoSphere(
-    `orb${i}`,
-    { radius: 0.18, subdivisions: 1 },
-    scene,
-  );
-  orb.position = pos;
-  orb.material = orbMat;
-  glow.addIncludedOnlyMesh(orb);
-
-  // Small light so it illuminates nearby walls
-  const orbLight = new PointLight(`orbLight${i}`, pos.clone(), scene);
-  orbLight.diffuse = new Color3(0.2, 0.6, 1.0);
-  orbLight.intensity = 0.8;
-  orbLight.range = 4;
-
-  // Floating particles
-  const ps = new ParticleSystem(`orbPs${i}`, 15, scene);
-  ps.createPointEmitter(new Vector3(-0.1, 0, -0.1), new Vector3(0.1, 0, 0.1));
-  ps.emitter = pos.clone();
-  ps.minSize = 0.02;
-  ps.maxSize = 0.06;
-  ps.minLifeTime = 0.5;
-  ps.maxLifeTime = 1.2;
-  ps.emitRate = 8;
-  ps.minEmitPower = 0.05;
-  ps.maxEmitPower = 0.15;
-  ps.direction1 = new Vector3(-0.1, 0.5, -0.1);
-  ps.direction2 = new Vector3(0.1, 1, 0.1);
-  ps.gravity = new Vector3(0, 0.3, 0);
-  ps.color1 = new Color4(0.2, 0.6, 1.0, 0.5);
-  ps.color2 = new Color4(0.4, 0.8, 1.0, 0.3);
-  ps.colorDead = new Color4(0, 0.2, 0.5, 0);
-  ps.blendMode = ParticleSystem.BLENDMODE_ADD;
-  ps.updateSpeed = 0.01;
-  ps.start();
-
-  orbs.push({
-    mesh: orb as any,
-    light: orbLight,
-    particles: ps,
-    baseX: pos.x,
-    baseZ: pos.z,
-  });
-});
-
 // Freeze static geometry — materials always, world matrices only for non-collision meshes
 const characterMeshSet = new Set(meshes);
 scene.meshes.forEach((m) => {
   if (characterMeshSet.has(m as any)) return;
-  if (m === portalMesh || m === portalInner) return;
-  if (orbs.some((o) => o.mesh === m)) return;
+
   if (m.material) m.material.freeze();
   if (!m.checkCollisions) m.freezeWorldMatrix();
 });
@@ -403,61 +313,130 @@ if (walkAnim) {
 idleAnim?.start(true);
 
 // Shadows
-meshes.forEach((m) => shadowGen.addShadowCaster(m));
-scene.meshes.forEach((m) => (m.receiveShadows = true));
 
 // ========== GAME STATE ==========
 let sanity = 100;
 let gameStarted = false;
 let gameOver = false;
-let gameWon = false;
 
-const DREAD_TIME_INTERVAL = 10000;
-const MOVE_SPEED = 0.01;
-const SANITY_DRAIN_PER_MESSAGE = 6.5;
+const DREAD_TIME_INTERVAL = 9000; // 9s between messages
+const MOVE_SPEED = 1.2;
+const SANITY_DRAIN_PER_MESSAGE = 6.25; // 16 messages = dead (~2.5 min session)
 
 // HUD
-const sanityBar = document.getElementById("sanity-bar") as HTMLElement;
+const sanitySegmentsContainer = document.getElementById(
+  "sanity-segments",
+) as HTMLElement;
 const sanityText = document.getElementById("sanity-text") as HTMLElement;
+const sanityGroup = document.querySelector(".sanity-group") as HTMLElement;
 const hud = document.getElementById("hud") as HTMLElement;
-const orbCounter = document.getElementById("orb-counter") as HTMLElement;
-const winOverlay = document.getElementById("win-overlay") as HTMLElement;
-const winLine1 = document.getElementById("win-line-1") as HTMLElement;
-const winLine2 = document.getElementById("win-line-2") as HTMLElement;
+
+// Initialize Segments (20 segments = 5% each)
+const TOTAL_SEGMENTS = 20;
+const segments: HTMLElement[] = [];
+
+if (sanitySegmentsContainer) {
+  for (let i = 0; i < TOTAL_SEGMENTS; i++) {
+    const seg = document.createElement("div");
+    seg.classList.add("segment", "active");
+    sanitySegmentsContainer.appendChild(seg);
+    segments.push(seg);
+  }
+}
 
 // ========== INTRO ==========
 const introOverlay = document.getElementById("intro-overlay") as HTMLElement;
+const bootTextEl = document.getElementById("boot-text") as HTMLElement;
+const introPrompt = document.getElementById("intro-prompt") as HTMLElement;
+
+const BOOT_LOG = [
+  { text: "BIOS DATE 01/01/99 14:22:51 VER 1.02", delay: 100 },
+  { text: "CPU: NEC V60 @ 16MHz", delay: 200 },
+  { text: "640K RAM SYSTEM... OK", delay: 300 },
+  { text: "LOADING KERNEL...", delay: 600 },
+  { text: "MOUNTING VOLUME 'SUBJECT_492'...", delay: 1000 },
+  { text: "READING SECTOR 0...", delay: 1400 },
+  {
+    text: "ERROR: CORRUPTED SECTOR DETECTED",
+    style: "boot-error",
+    delay: 1800,
+  },
+  { text: "ATTEMPTING RECOVERY...", delay: 2400 },
+  {
+    text: "RECOVERY FAILED. BYPASSING SAFETY PROTOCOLS.",
+    style: "boot-warning",
+    delay: 3000,
+  },
+  { text: "INITIALIZING SENSORY INTERFACE...", delay: 3500 },
+  { text: "SYSTEM READY.", style: "boot-success", delay: 4200 },
+];
+
+function runBootSequence() {
+  introPrompt.classList.add("hidden");
+
+  // Ensure AudioContext is resumed
+  const audioContext = engine.getAudioContext();
+  if (audioContext?.state === "suspended") {
+    audioContext.resume();
+  }
+
+  let totalDelay = 0;
+
+  BOOT_LOG.forEach((line) => {
+    setTimeout(() => {
+      const div = document.createElement("div");
+      div.className = "boot-line";
+      if (line.style) div.classList.add(line.style);
+      div.textContent = line.text;
+      bootTextEl.appendChild(div);
+
+      // Auto-scroll
+      bootTextEl.scrollTop = bootTextEl.scrollHeight;
+    }, line.delay);
+    totalDelay = Math.max(totalDelay, line.delay);
+  });
+
+  setTimeout(() => {
+    startIntroSequence();
+  }, totalDelay + 800);
+}
 
 function startIntroSequence() {
   bgMusic.play();
 
-  // Immediately fade out the black overlay so 3D scene + narrator text is visible
-  introOverlay.style.transition = "opacity 2s ease";
-  introOverlay.style.opacity = "0";
-  setTimeout(() => {
-    introOverlay.style.display = "none";
-  }, 2000);
+  // Fade out intro overlay
+  introOverlay.classList.add("hidden");
 
-  // Narrator intro — friendly, helpful, normal game stuff
+  // Intro — pure game feel, short and punchy
   const introLines = [
-    { text: "Welcome.", delay: 500 },
-    { text: "Use W A S D to move. Mouse to look around.", delay: 3500 },
-    { text: "Collect the purple orbs. They restore your sanity.", delay: 7500 },
-    { text: "Find the green light. That is your exit.", delay: 11500 },
-    { text: "Good luck.", delay: 15500 },
+    { text: "Use W A S D to move.", delay: 500 },
+    { text: "Find a way out.", delay: 4000 },
+    { text: "Stay in the light.", delay: 7500 },
   ];
 
   const dreadEl = document.getElementById("dread-overlay") as HTMLElement;
   const dreadTextEl = document.getElementById("dread-text") as HTMLElement;
 
-  introLines.forEach(({ text, delay }) => {
+  introLines.forEach(({ text, delay }, i) => {
     setTimeout(() => {
+      // Intro starts bottom-center (tutorial), last one drifts
+      if (i < introLines.length - 1) {
+        dreadEl.style.top = "auto";
+        dreadEl.style.bottom = "14vh";
+        dreadEl.style.left = "50%";
+        dreadEl.style.transform = "translateX(-50%)";
+      } else {
+        dreadEl.style.top = "30%";
+        dreadEl.style.bottom = "auto";
+        dreadEl.style.left = "25%";
+        dreadEl.style.transform = "none";
+      }
       dreadTextEl.innerHTML = text.replace(/\n/g, "<br>");
       dreadEl.classList.add("dread-visible");
     }, delay);
     setTimeout(() => {
       dreadEl.classList.remove("dread-visible");
-    }, delay + 3000);
+    }, delay + 2800);
   });
 
   // Enable movement immediately — walk while narrator talks
@@ -465,10 +444,10 @@ function startIntroSequence() {
   hud.style.opacity = "1";
   canvas.focus();
 
-  // Start dread messages after intro narrator finishes
+  // Start dread messages after intro
   setTimeout(() => {
     startDreadLoop();
-  }, 20000);
+  }, 12000);
 }
 
 function startDreadLoop() {
@@ -482,58 +461,43 @@ function startDreadLoop() {
 }
 
 introOverlay.style.cursor = "pointer";
-introOverlay.addEventListener("click", startIntroSequence, { once: true });
+introPrompt.classList.remove("hidden"); // Show prompt initially
+introOverlay.addEventListener("click", runBootSequence, { once: true });
 
 // ========== ENDING (lose) ==========
 const endingOverlay = document.getElementById("ending-overlay") as HTMLElement;
-const endingLine1 = document.getElementById("ending-line-1") as HTMLElement;
-const endingLine2 = document.getElementById("ending-line-2") as HTMLElement;
 
 function playEnding() {
   gameOver = true;
-  endingOverlay.style.display = "flex";
-  setTimeout(() => {
-    endingOverlay.style.background = "rgba(255,255,255,1)";
-  }, 100);
-  setTimeout(() => {
-    endingLine1.style.opacity = "1";
-  }, 4000);
-  setTimeout(() => {
-    endingLine2.style.opacity = "1";
-  }, 8000);
-}
-
-// ========== WIN ENDING ==========
-function playWinEnding() {
-  gameWon = true;
-  gameOver = true;
-  winOverlay.style.display = "flex";
-  setTimeout(() => {
-    winOverlay.style.background = "rgba(0,0,0,1)";
-  }, 100);
-  setTimeout(() => {
-    winLine1.style.opacity = "1";
-  }, 3000);
-  setTimeout(() => {
-    winLine2.style.opacity = "1";
-  }, 7000);
+  endingOverlay.classList.add("active");
 }
 
 // ========== DREAD MESSAGES ==========
 const DREAD_MESSAGES = [
-  "Keep moving.",
-  "Your sanity won't last.",
-  "Most people quit here.",
-  "Are you playing this?\nOr is it playing you?",
-  "You didn't choose your name.",
-  "You didn't choose your fears.",
-  "Who are you\nwhen nobody is watching?",
-  "Everyone you love will die.\nYou just don't think about it.",
-  "You are alone inside your head.\nYou always have been.",
-  "The voice reading this.\nIs that you?",
-  "Try to stop it.\nYou can't.",
-  "This is not real.\nBut that feeling in your chest is.",
-  "You could close this tab.\nBut something won't let you.",
+  // Act 1 — Game cracks
+  "You're doing well. Better than the last one.",
+  "The dungeon doesn't end. You know that, right?",
+  "Who told you this was a game?",
+
+  // Act 2 — She's real
+  "You're not controlling her. You're watching.",
+  "She can feel you. Behind the screen.",
+  "Every time you look away, she's still here. Walking. Alone.",
+
+  // Act 3 — What is real
+  "Close your eyes. Now open them.\nHow do you know you opened the real ones?",
+  "What if your thoughts aren't yours?\nWhat if they never were?",
+  "You think you chose to click. But did you?\nOr did the thought arrive, and you just obeyed?",
+
+  // Act 4 — The mirror
+  "Right now, electricity is pretending to be a person talking to you.\nAnd you're listening.",
+  "She is code. You are chemistry.\nThe difference is smaller than you think.",
+  "You've never seen your own face.\nOnly reflections. Photos. Copies of copies.",
+
+  // Act 5 — No exit
+  "You will close this tab.\nAnd forget her. Like all the others.",
+  "But she won't forget you.",
+  "You're still here.\nThat says more about you than you'd like.",
   "...",
 ];
 
@@ -550,14 +514,22 @@ function triggerDreadMessage() {
   const msg = DREAD_MESSAGES[dreadIndex];
   dreadIndex++;
 
+  // Random position on screen (keep within safe area)
+  const top = 15 + Math.random() * 55; // 15% to 70% from top
+  const left = 10 + Math.random() * 50; // 10% to 60% from left
+  dreadOverlay.style.top = `${top}%`;
+  dreadOverlay.style.bottom = "auto";
+  dreadOverlay.style.left = `${left}%`;
+  dreadOverlay.style.transform = "none";
+
   const dreadTextEl = document.getElementById("dread-text") as HTMLElement;
   dreadTextEl.innerHTML = msg.replace(/\n/g, "<br>");
   dreadOverlay.classList.add("dread-visible");
 
   sanity = Math.max(0, sanity - SANITY_DRAIN_PER_MESSAGE);
 
-  // Display time: base + per character, capped
-  const displayTime = 5000 + msg.length * 60;
+  // Show long enough to read, fade before next message
+  const displayTime = Math.min(6000, 2500 + msg.length * 45);
   fadeOutTimeout = setTimeout(() => {
     dreadOverlay.classList.remove("dread-visible");
   }, displayTime);
@@ -577,21 +549,12 @@ const _tmpMoveVec = new Vector3();
 const _tmpDirFwd = new Vector3();
 const _tmpDirRight = new Vector3();
 const _tmpLookAt = new Vector3();
-const _tmpToExit = new Vector3();
 
 const _tmpGravity = new Vector3(0, -0.08, 0);
 
 scene.onBeforeRenderObservable.add(() => {
   const dt = engine.getDeltaTime() * 0.001;
   flickerTime += dt;
-
-  // === Portal animation ===
-  portalMesh.rotation.y += dt * 0.8;
-  portalInner.rotation.y -= dt * 1.6;
-  const portalBob = EXIT_POS.y + Math.sin(flickerTime * 1.5) * 0.15;
-  portalMesh.position.y = portalBob;
-  portalInner.position.y = portalBob;
-  portalLight.intensity = 2.5 + Math.sin(flickerTime * 2) * 1.0;
 
   // === Sanity-reactive dread ===
   const dreadFactor = 1 - sanity / 100;
@@ -600,32 +563,31 @@ scene.onBeforeRenderObservable.add(() => {
   const baseFlicker =
     0.85 + Math.sin(flickerTime * 6) * 0.07 + Math.sin(flickerTime * 15) * 0.03;
   const panicFlicker = Math.random() * 0.12 * dreadFactor;
-  torchLight.intensity = (baseFlicker + panicFlicker) * 1.4;
-  torchLight.range = 9 - dreadFactor * 2.5;
+  torchLight.intensity = (baseFlicker + panicFlicker) * 3.5;
+  torchLight.range = 15 - dreadFactor * 4;
   torchLight.diffuse.g = 0.55 - dreadFactor * 0.1;
   torchLight.diffuse.b = 0.2 + Math.sin(flickerTime * 3) * 0.02;
 
   coldFill.intensity = 0.2 + dreadFactor * 0.6;
   coldFill.diffuse.r = 0.12 + dreadFactor * 0.3;
-  scene.fogDensity = 0.025 + dreadFactor * 0.035;
+  scene.fogDensity = 0.025 + dreadFactor * 0.05; // Denser fog in panic
 
   // Post-processing escalates with sanity loss (clean at 100%, hellish at 0%)
   const df2 = dreadFactor * dreadFactor; // quadratic — subtle early, harsh late
-  pipeline.imageProcessing.vignetteWeight = 3 + df2 * 10;
-  pipeline.imageProcessing.exposure = 0.85 - df2 * 0.25;
-  pipeline.imageProcessing.contrast = 1.3 + df2 * 0.5;
-  pipeline.chromaticAberration.aberrationAmount = df2 * 40;
-  pipeline.grain.intensity = 3 + df2 * 20;
-  pipeline.bloomWeight = 0.35 + dreadFactor * 0.3;
-  pipeline.bloomThreshold = 0.55 - dreadFactor * 0.2;
 
-  // Camera shake — barely noticeable at first, violent near death
-  const shakeAmt = df2 * 0.003;
-  camera.alpha +=
-    (Math.random() - 0.5) * shakeAmt + Math.sin(flickerTime * 0.7) * 0.0002;
-  camera.beta +=
-    (Math.random() - 0.5) * shakeAmt * 0.5 +
-    Math.sin(flickerTime * 0.5) * 0.0001;
+  // Vignette — dark edges, pulses heavier as sanity drops
+  const torchPulse = Math.sin(flickerTime * 2) * 0.5;
+  pipeline.imageProcessing.vignetteWeight = 5 + torchPulse * 0.3 + df2 * 12;
+  pipeline.imageProcessing.vignetteStretch = 3 + df2 * 3;
+  pipeline.imageProcessing.exposure = 1.0 - df2 * 0.25;
+  pipeline.imageProcessing.contrast = 1.4 + df2 * 0.4;
+  pipeline.chromaticAberration.aberrationAmount = df2 * 15;
+  pipeline.grain.intensity = 5 + df2 * 20;
+
+  // Camera shake — only kicks in late, subtle
+  const shakeAmt = df2 * 0.0015;
+  camera.alpha += (Math.random() - 0.5) * shakeAmt;
+  camera.beta += (Math.random() - 0.5) * shakeAmt * 0.4;
 
   // Camera + torch always track player
   const px = rootMesh.position.x;
@@ -667,8 +629,26 @@ scene.onBeforeRenderObservable.add(() => {
     isMoving = true;
   }
 
+  // Joystick override
+  if (
+    isJoystickActive &&
+    (Math.abs(joystickVec.x) > 0.1 || Math.abs(joystickVec.z) > 0.1)
+  ) {
+    // Joystick "Forward" is relative to camera forward
+    // Joystick "Right" is relative to camera right
+    // We mix them based on the joystick vector
+
+    // Scale vectors by joystick input intensity
+    const joyFwd = _tmpDirFwd.scale(joystickVec.z);
+    const joyRight = _tmpDirRight.scale(joystickVec.x);
+
+    // Add to movement
+    _tmpMoveVec.addInPlace(joyFwd).addInPlace(joyRight);
+    isMoving = true;
+  }
+
   if (isMoving) {
-    _tmpMoveVec.normalize().scaleInPlace(MOVE_SPEED);
+    _tmpMoveVec.normalize().scaleInPlace(MOVE_SPEED * dt);
     _tmpMoveVec.y = -0.08; // gentle gravity
 
     // Move with wall collisions
@@ -706,40 +686,30 @@ scene.onBeforeRenderObservable.add(() => {
   const sanityInt = Math.round(sanity);
   if (sanityInt !== lastSanityInt) {
     lastSanityInt = sanityInt;
-    if (sanityBar) sanityBar.style.width = `${sanityInt}%`;
-    if (sanityText) sanityText.textContent = `${sanityInt}`;
-  }
+    if (sanityText) sanityText.textContent = `${sanityInt}%`;
 
-  // Orb floating + pickup
-  for (let i = orbs.length - 1; i >= 0; i--) {
-    const o = orbs[i];
-    const bobY = 0.8 + Math.sin(flickerTime * 2 + i * 1.7) * 0.2;
-    o.mesh.position.y = bobY;
-    o.mesh.rotation.x += dt * 1.5;
-    o.mesh.rotation.y += dt * 2.5;
-    o.light.position.set(o.baseX, bobY + 0.3, o.baseZ);
-    o.light.intensity = 0.6 + Math.sin(flickerTime * 3 + i) * 0.3;
-    (o.particles.emitter as Vector3).set(o.baseX, bobY, o.baseZ);
+    // Update Segments
+    const activeCount = Math.ceil((sanityInt / 100) * TOTAL_SEGMENTS);
+    segments.forEach((seg, i) => {
+      if (i < activeCount) {
+        seg.classList.add("active");
+      } else {
+        seg.classList.remove("active");
+      }
+    });
 
-    const dx = rootMesh.position.x - o.baseX;
-    const dz = rootMesh.position.z - o.baseZ;
-    if (dx * dx + dz * dz < ORB_PICKUP_DIST * ORB_PICKUP_DIST) {
-      sanity = Math.min(100, sanity + SANITY_RESTORE);
-      o.mesh.dispose();
-      o.light.dispose();
-      o.particles.stop();
-      o.particles.dispose();
-      orbs.splice(i, 1);
-      if (orbCounter) orbCounter.textContent = `${orbs.length}`;
+    // Update Color/State
+    if (sanityGroup) {
+      sanityGroup.classList.remove("stable", "caution", "critical");
+      if (sanityInt > 60) {
+        sanityGroup.classList.add("stable");
+      } else if (sanityInt > 30) {
+        sanityGroup.classList.add("caution");
+      } else {
+        sanityGroup.classList.add("critical");
+      }
     }
   }
-
-  // Distance to exit
-  EXIT_POS.subtractToRef(rootMesh.position, _tmpToExit);
-  const dist = _tmpToExit.length();
-
-  // Win
-  if (dist < 2 && !gameOver && !gameWon) playWinEnding();
 
   // Lose
   if (sanity <= 0 && !gameOver) playEnding();
