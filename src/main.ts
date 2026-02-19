@@ -185,24 +185,29 @@ async function main() {
     }
   }
 
-  // ========== ENEMIES (3x) ==========
-  const ENEMY_SPEEDS = [0.95, 1.15, 1.35];
+  // ========== ENEMIES (4x) ==========
+  const ENEMY_SPEEDS = [0.85, 1.0, 1.1, 0.92];
   const ENEMY_STARTS = [
     new Vector3(3, 0, 3),
     new Vector3(-10, 0, 6),
     new Vector3(6, 0, -10),
+    new Vector3(12, 0, -10),
   ];
 
   const allEnemyLoads = await Promise.all([
     ImportMeshAsync("bad_guy.glb", scene),
     ImportMeshAsync("bad_guy.glb", scene),
     ImportMeshAsync("bad_guy.glb", scene),
+    ImportMeshAsync("bad_guy.glb", scene),
   ]);
 
-  interface EnemyState { root: import("@babylonjs/core").AbstractMesh; meshes: import("@babylonjs/core").AbstractMesh[] }
+  interface EnemyState {
+    root: import("@babylonjs/core").AbstractMesh;
+    meshes: import("@babylonjs/core").AbstractMesh[];
+  }
   const enemies: EnemyState[] = [];
 
-  for (let i = 0; i < 3; i++) {
+  for (let i = 0; i < 4; i++) {
     const { meshes: em, animationGroups: ea } = allEnemyLoads[i];
     const root = em[0];
     root.scaling.setAll(1.5);
@@ -222,7 +227,8 @@ async function main() {
           (m.material as StandardMaterial).forceDepthWrite = true;
       }
     });
-    const walkAnim = ea.find((ag) => ag.name.toLowerCase().includes("walk")) ?? ea[0];
+    const walkAnim =
+      ea.find((ag) => ag.name.toLowerCase().includes("walk")) ?? ea[0];
     walkAnim?.start(true);
     enemies.push({ root, meshes: em });
   }
@@ -240,7 +246,9 @@ async function main() {
 
   // Freeze static geometry — materials always, world matrices only for non-collision meshes
   const characterMeshSet = new Set(meshes);
-  enemies.forEach((e) => e.meshes.forEach((m) => characterMeshSet.add(m as any)));
+  enemies.forEach((e) =>
+    e.meshes.forEach((m) => characterMeshSet.add(m as any)),
+  );
   scene.meshes.forEach((m) => {
     if (characterMeshSet.has(m as any)) return;
 
@@ -324,7 +332,7 @@ async function main() {
   let lastTimerSec = -1;
 
   const DREAD_TIME_INTERVAL = 6500;
-  const MOVE_SPEED = 1.2;
+  const MOVE_SPEED = 1.1;
   const SANITY_DRAIN_PER_MESSAGE = 9; // ~11 messages = dead
 
   // HUD
@@ -334,8 +342,12 @@ async function main() {
   const sanityText = document.getElementById("sanity-text") as HTMLElement;
   const sanityGroup = document.querySelector(".sanity-group") as HTMLElement;
   const hud = document.getElementById("hud") as HTMLElement;
-  const survivalTimerEl = document.getElementById("survival-timer") as HTMLElement;
-  const survivalDisplayEl = document.getElementById("survival-display") as HTMLElement;
+  const survivalTimerEl = document.getElementById(
+    "survival-timer",
+  ) as HTMLElement;
+  const survivalDisplayEl = document.getElementById(
+    "survival-display",
+  ) as HTMLElement;
 
   // Initialize Segments (20 segments = 5% each)
   const TOTAL_SEGMENTS = 20;
@@ -415,9 +427,9 @@ async function main() {
 
     // Intro — pure game feel, short and punchy
     const introLines = [
-      { text: "Use W A S D to move.", delay: 500 },
+      { text: "W A S D to move.  SHIFT to run.", delay: 500 },
       { text: "Find a way out.", delay: 4000 },
-      { text: "Stay in the light.", delay: 7500 },
+      { text: "Stay in the light. \n if you can ", delay: 7500 },
     ];
 
     const dreadEl = document.getElementById("dread-overlay") as HTMLElement;
@@ -485,7 +497,8 @@ async function main() {
     gameOver = true;
     stompSound.stop();
     const survived = fmtTime(Math.floor(survivalTime));
-    if (survivalDisplayEl) survivalDisplayEl.textContent = `YOU SURVIVED: ${survived}`;
+    if (survivalDisplayEl)
+      survivalDisplayEl.textContent = `YOU SURVIVED: ${survived}`;
     endingOverlay.classList.add("active");
   }
   endingOverlay.style.cursor = "pointer";
@@ -493,30 +506,21 @@ async function main() {
 
   // ========== DREAD MESSAGES ==========
   const DREAD_MESSAGES = [
-    // Act 1 — Feels like a tutorial. Then doesn't.
-    "Use W A S D to move.\nThere is no way out.",
-    "There are three of them.\nYou noticed.",
-    "You're faster than they are.\nFor now.",
-
-    // Act 2 — The game becomes aware
-    "This is level 1.\nThere are no other levels.",
-    "You're doing well.\nSubject 491 also did well.",
-    "The health bar is called NEURAL SYNC.\nAsk yourself why.",
-
-    // Act 3 — It knows you
-    "Stop running for one second.\nWhat are you actually afraid of?",
-    "They don't know they're chasing you.\nThey just follow the code.\nSo do you.",
-    "You chose to click.\nOr did the thought arrive\nand you just obeyed it?",
-
-    // Act 4 — The existential drop
-    "You are 37 trillion cells\ntrying to survive a dungeon\nbuilt in a text editor.",
-    "Right now your heart is beating.\nYou didn't ask it to.\nIt doesn't ask you.",
-    "You've never seen your own face.\nOnly reflections.\nCopies of copies of copies.",
-
-    // Act 5 — Full dissolution
-    "When you die here, you'll close the tab.\nWhen you die out there,\nnobody closes the tab.",
-    "The dungeon is infinite.\nSo is the space\nbetween your thoughts.",
-    "She's not trapped in here.\nYou put her here.\nAnd you keep coming back.",
+    "Run.",
+    "Four of them.\nOne of you.\nThose are the rules.",
+    "They can smell fear.\nYou're producing a lot of it.",
+    "You're going deeper.\nThat's exactly what they want.",
+    "She has no idea where she is.\nDo you?",
+    "That sound behind you?\nThat's not the game.",
+    "Your hands are on a keyboard.\nThe rest of you is in there.",
+    "You didn't choose to be afraid.\nFear chose you.\nIt always does.",
+    "There is no winning condition in this file.\nI checked.",
+    "Stop.\nJust for one second.\nFeel your heartbeat.\nNow ask yourself why it got faster.",
+    "You are temporary.\nThe things chasing you don't know that.\nThey never stop.",
+    "Every version of you that played this\nalready lost.\nYou are not different.",
+    "The exit doesn't exist\nbecause you didn't make one.\nYou made them instead.",
+    "It's just a game.\nSay it out loud.\nSee if it helps.",
+    "She can't close the tab.\nYou can.\nAnd you won't.",
     "...",
   ];
 
@@ -559,6 +563,14 @@ async function main() {
   let flickerTime = 0;
   let enemyDist = 999;
 
+  // Sprint state
+  const SPRINT_SPEED = 2;
+  const SPRINT_DRAIN = 1 / 3.5; // depletes in 3.5s
+  const SPRINT_REGEN = 1 / 2.8; // recharges in 2.8s
+  let stamina = 1.0;
+  let sprintExhausted = false;
+  const sprintBarEl = document.getElementById("sprint-bar") as HTMLElement;
+
   let lastSanityInt = 100;
 
   // Pre-allocate reusable vectors — zero GC pressure per frame
@@ -594,7 +606,8 @@ async function main() {
     torchLight.diffuse.b = 0.08 + Math.sin(flickerTime * 2) * 0.01;
 
     // Cold fill pulses like a heartbeat
-    coldFill.intensity = 0.6 + Math.sin(flickerTime * 1.1) * 0.15 + dreadFactor * 0.8;
+    coldFill.intensity =
+      0.6 + Math.sin(flickerTime * 1.1) * 0.15 + dreadFactor * 0.8;
     coldFill.range = 4 + dreadFactor * 4;
     scene.fogDensity = 0.055 + dreadFactor * 0.07;
 
@@ -607,11 +620,14 @@ async function main() {
     pipeline.imageProcessing.vignetteColor.r = proximityFactor * 0.7;
     pipeline.imageProcessing.vignetteColor.g = 0;
     pipeline.imageProcessing.vignetteColor.b = 0;
-    pipeline.imageProcessing.vignetteWeight = 5 + torchPulse * 0.4 + df2 * 14 + proximityFactor * 22;
-    pipeline.imageProcessing.vignetteStretch = 3 + df2 * 4 + proximityFactor * 2;
+    pipeline.imageProcessing.vignetteWeight =
+      5 + torchPulse * 0.4 + df2 * 14 + proximityFactor * 22;
+    pipeline.imageProcessing.vignetteStretch =
+      3 + df2 * 4 + proximityFactor * 2;
     pipeline.imageProcessing.exposure = 0.9 - df2 * 0.3 - proximityFactor * 0.1;
     pipeline.imageProcessing.contrast = 1.5 + df2 * 0.5;
-    pipeline.chromaticAberration.aberrationAmount = 3 + df2 * 18 + proximityFactor * 12;
+    pipeline.chromaticAberration.aberrationAmount =
+      3 + df2 * 18 + proximityFactor * 12;
     pipeline.grain.intensity = 8 + df2 * 25 + proximityFactor * 10;
 
     // Camera shake — proximity makes it violent
@@ -643,12 +659,14 @@ async function main() {
 
     // === Enemy chase ===
     const STOMP_NEAR = 9;
-    const TELEPORT_FAR = 17;
-    let minEnemyDist = 999;
+    const TELEPORT_FAR = 13;
+    let minEnemyDist = 50;
 
     for (let ei = 0; ei < enemies.length; ei++) {
       const enemy = enemies[ei];
-      _tmpEnemyDir.copyFrom(rootMesh.position).subtractInPlace(enemy.root.position);
+      _tmpEnemyDir
+        .copyFrom(rootMesh.position)
+        .subtractInPlace(enemy.root.position);
       const edist = _tmpEnemyDir.length();
       if (edist < minEnemyDist) minEnemyDist = edist;
 
@@ -665,7 +683,9 @@ async function main() {
       }
 
       if (edist > 0.5) {
-        _tmpEnemyDir.normalize().scaleInPlace(ENEMY_SPEEDS[ei] * (1 + dreadFactor * 0.6) * dt);
+        _tmpEnemyDir
+          .normalize()
+          .scaleInPlace(ENEMY_SPEEDS[ei] * (1 + dreadFactor * 0.45) * dt);
         _tmpEnemyDir.y = 0;
         enemy.root.position.addInPlace(_tmpEnemyDir);
         enemy.root.position.y = 0;
@@ -714,17 +734,33 @@ async function main() {
       isMoving = true;
     }
 
+    // Sprint — Shift key, limited stamina
+    const wantSprint = keySet.has("ShiftLeft") || keySet.has("ShiftRight");
+    const isSprinting =
+      wantSprint && isMoving && stamina > 0 && !sprintExhausted;
+
+    if (isSprinting) {
+      stamina = Math.max(0, stamina - SPRINT_DRAIN * dt);
+      if (stamina === 0) sprintExhausted = true;
+    } else {
+      stamina = Math.min(1, stamina + SPRINT_REGEN * dt);
+      if (sprintExhausted && stamina >= 0.25) sprintExhausted = false;
+    }
+
+    // Update sprint bar
+    if (sprintBarEl) {
+      sprintBarEl.style.width = `${stamina * 100}%`;
+      sprintBarEl.classList.toggle("exhausted", sprintExhausted);
+    }
+
+    const currentSpeed = isSprinting ? SPRINT_SPEED : MOVE_SPEED;
+
     if (isMoving) {
-      _tmpMoveVec.normalize().scaleInPlace(MOVE_SPEED * dt);
-      _tmpMoveVec.y = -0.08; // gentle gravity
-
-      // Move with wall collisions
+      _tmpMoveVec.normalize().scaleInPlace(currentSpeed * dt);
+      _tmpMoveVec.y = -0.08;
       rootMesh.moveWithCollisions(_tmpMoveVec);
-
-      // Clamp to ground — never climb on objects
       if (rootMesh.position.y > 0) rootMesh.position.y = 0;
 
-      // Rotate character to face movement direction
       _tmpLookAt.set(
         _tmpMoveVec.x + rootMesh.position.x,
         rootMesh.position.y,
@@ -737,10 +773,8 @@ async function main() {
         walkAnim.start(true);
       }
     } else {
-      // Apply gravity even when standing still
       rootMesh.moveWithCollisions(_tmpGravity);
       if (rootMesh.position.y > 0) rootMesh.position.y = 0;
-
       if (wasMoving) {
         walkAnim?.stop();
         idleAnim?.start(true);

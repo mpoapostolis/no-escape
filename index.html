@@ -23,13 +23,19 @@
     <div id="hud">
       <div class="sanity-group">
         <div class="sanity-label">NEURAL SYNC</div>
-        <div class="sanity-segments" id="sanity-segments">
-          <!-- JS will populate segments -->
-        </div>
+        <div class="sanity-segments" id="sanity-segments"></div>
         <div class="sanity-val" id="sanity-text">100%</div>
+
+        <div class="sprint-group">
+          <div class="sprint-label">SPRINT <span class="sprint-hint">[SHIFT]</span></div>
+          <div class="sprint-track">
+            <div id="sprint-bar" class="sprint-fill"></div>
+          </div>
+        </div>
+
+        <div id="survival-timer" class="survival-timer">00:00</div>
       </div>
       <div class="location-text">SUBJECT: #492 // SECTOR 0</div>
-      <div id="survival-timer" style="font-family:monospace;font-size:11px;color:#a00;letter-spacing:2px;margin-top:4px;opacity:0.8;">00:00</div>
       <div class="crosshair"></div>
       <div class="orb-counter" id="orb-counter">0</div>
     </div>
