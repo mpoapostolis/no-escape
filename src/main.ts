@@ -40,6 +40,8 @@ async function main() {
   scene.skipPointerMovePicking = true;
   scene.autoClear = false;
   scene.collisionsEnabled = true;
+  // Group 1 (player + enemy) inherits depth from group 0 (dungeon) — walls occlude characters
+  scene.setRenderingAutoClearDepthStencil(1, false, false, false);
 
   const camera = new ArcRotateCamera(
     "camera",
@@ -62,31 +64,31 @@ async function main() {
   });
 
   // ========== LIGHTS ==========
-  // Dim ambient — reduce again since torch is back
   const light = new HemisphericLight("light", Vector3.Up(), scene);
-  light.intensity = 0.1;
-  light.diffuse = new Color3(0.12, 0.06, 0.05);
-  light.groundColor = new Color3(0.01, 0.005, 0.01);
+  light.intensity = 0.05;
+  light.diffuse = new Color3(0.06, 0.03, 0.06);
+  light.groundColor = new Color3(0.005, 0.002, 0.005);
 
+  // Cold fill — sickly purple, like something wrong is nearby
   const coldFill = new PointLight("coldFill", new Vector3(0, 3, -2), scene);
-  coldFill.diffuse = new Color3(0.12, 0.08, 0.2);
-  coldFill.intensity = 0.4;
-  coldFill.range = 5;
+  coldFill.diffuse = new Color3(0.05, 0.0, 0.18);
+  coldFill.intensity = 0.6;
+  coldFill.range = 4;
 
-  // Torch — warm, your main light source (RESTORED)
+  // Torch — barely enough light to see
   const torchLight = new PointLight("torch", new Vector3(0, 2, 0), scene);
-  torchLight.diffuse = new Color3(1.0, 0.55, 0.2);
-  torchLight.intensity = 3.0; // Bright to start
-  torchLight.range = 15;
+  torchLight.diffuse = new Color3(1.0, 0.38, 0.08);
+  torchLight.intensity = 2.0;
+  torchLight.range = 8;
 
   // Shadows
 
   // ========== HORROR ATMOSPHERE ==========
   scene.clearColor = new Color4(0, 0, 0, 1);
-  scene.ambientColor = new Color3(0.008, 0.004, 0.008);
+  scene.ambientColor = new Color3(0.002, 0.001, 0.002);
   scene.fogMode = Scene.FOGMODE_EXP2;
-  scene.fogColor = new Color3(0.002, 0.001, 0.002);
-  scene.fogDensity = 0.025; // Atmospheric but visible
+  scene.fogColor = new Color3(0.0, 0.0, 0.0);
+  scene.fogDensity = 0.055;
 
   // ========== POST PROCESSING ==========
   const pipeline = new DefaultRenderingPipeline("horrorPipeline", true, scene, [
@@ -107,9 +109,9 @@ async function main() {
   pipeline.imageProcessing.vignetteEnabled = true;
   pipeline.imageProcessing.vignetteWeight = 5;
   pipeline.imageProcessing.vignetteStretch = 3;
-  pipeline.imageProcessing.vignetteColor = new Color4(0, 0, 0, 0);
-  pipeline.imageProcessing.contrast = 1.3;
-  pipeline.imageProcessing.exposure = 1.1;
+  pipeline.imageProcessing.vignetteColor = new Color4(0, 0, 0, 1);
+  pipeline.imageProcessing.contrast = 1.5;
+  pipeline.imageProcessing.exposure = 0.9;
   pipeline.imageProcessing.toneMappingEnabled = true;
   // Depth of field — subtle, cinematic
   pipeline.depthOfFieldEnabled = true;
@@ -119,8 +121,8 @@ async function main() {
   pipeline.depthOfFieldBlurLevel = 1;
   // Chromatic aberration — starts at ZERO, only kicks in as sanity drops
   pipeline.chromaticAberrationEnabled = true;
-  pipeline.chromaticAberration.aberrationAmount = 0;
-  pipeline.chromaticAberration.radialIntensity = 1.5;
+  pipeline.chromaticAberration.aberrationAmount = 3;
+  pipeline.chromaticAberration.radialIntensity = 2.0;
 
   // ========== INPUT ==========
   const keySet = new Set<string>();
@@ -183,8 +185,62 @@ async function main() {
     }
   }
 
+  // ========== ENEMIES (3x) ==========
+  const ENEMY_SPEEDS = [0.95, 1.15, 1.35];
+  const ENEMY_STARTS = [
+    new Vector3(3, 0, 3),
+    new Vector3(-10, 0, 6),
+    new Vector3(6, 0, -10),
+  ];
+
+  const allEnemyLoads = await Promise.all([
+    ImportMeshAsync("bad_guy.glb", scene),
+    ImportMeshAsync("bad_guy.glb", scene),
+    ImportMeshAsync("bad_guy.glb", scene),
+  ]);
+
+  interface EnemyState { root: import("@babylonjs/core").AbstractMesh; meshes: import("@babylonjs/core").AbstractMesh[] }
+  const enemies: EnemyState[] = [];
+
+  for (let i = 0; i < 3; i++) {
+    const { meshes: em, animationGroups: ea } = allEnemyLoads[i];
+    const root = em[0];
+    root.scaling.setAll(1.5);
+    root.position.copyFrom(ENEMY_STARTS[i]);
+    root.checkCollisions = true;
+    root.ellipsoid = new Vector3(0.4, 0.9, 0.4);
+    root.ellipsoidOffset = new Vector3(0, 0.9, 0);
+    em.forEach((m) => {
+      m.renderingGroupId = 1;
+      m.alwaysSelectAsActiveMesh = true;
+      m.refreshBoundingInfo({ applySkeleton: true, applyMorph: true });
+      if (m.material) {
+        m.material.backFaceCulling = false;
+        if (m.material instanceof PBRMaterial)
+          (m.material as PBRMaterial).forceDepthWrite = true;
+        else if (m.material instanceof StandardMaterial)
+          (m.material as StandardMaterial).forceDepthWrite = true;
+      }
+    });
+    const walkAnim = ea.find((ag) => ag.name.toLowerCase().includes("walk")) ?? ea[0];
+    walkAnim?.start(true);
+    enemies.push({ root, meshes: em });
+  }
+
+  const stompSound = new Sound("stomp", "stomp.flac", scene, null, {
+    loop: true,
+    autoplay: false,
+    volume: 0.9,
+  });
+  const demonSound = new Sound("demon", "demon.wav", scene, null, {
+    loop: false,
+    autoplay: false,
+  });
+  let demonPlayed = false;
+
   // Freeze static geometry — materials always, world matrices only for non-collision meshes
   const characterMeshSet = new Set(meshes);
+  enemies.forEach((e) => e.meshes.forEach((m) => characterMeshSet.add(m as any)));
   scene.meshes.forEach((m) => {
     if (characterMeshSet.has(m as any)) return;
 
@@ -264,10 +320,12 @@ async function main() {
   let sanity = 100;
   let gameStarted = false;
   let gameOver = false;
+  let survivalTime = 0;
+  let lastTimerSec = -1;
 
-  const DREAD_TIME_INTERVAL = 9000; // 9s between messages
+  const DREAD_TIME_INTERVAL = 6500;
   const MOVE_SPEED = 1.2;
-  const SANITY_DRAIN_PER_MESSAGE = 6.25; // 16 messages = dead (~2.5 min session)
+  const SANITY_DRAIN_PER_MESSAGE = 9; // ~11 messages = dead
 
   // HUD
   const sanitySegmentsContainer = document.getElementById(
@@ -276,6 +334,8 @@ async function main() {
   const sanityText = document.getElementById("sanity-text") as HTMLElement;
   const sanityGroup = document.querySelector(".sanity-group") as HTMLElement;
   const hud = document.getElementById("hud") as HTMLElement;
+  const survivalTimerEl = document.getElementById("survival-timer") as HTMLElement;
+  const survivalDisplayEl = document.getElementById("survival-display") as HTMLElement;
 
   // Initialize Segments (20 segments = 5% each)
   const TOTAL_SEGMENTS = 20;
@@ -415,37 +475,48 @@ async function main() {
     "ending-overlay",
   ) as HTMLElement;
 
+  function fmtTime(sec: number) {
+    const m = Math.floor(sec / 60);
+    const s = sec % 60;
+    return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+  }
+
   function playEnding() {
     gameOver = true;
+    stompSound.stop();
+    const survived = fmtTime(Math.floor(survivalTime));
+    if (survivalDisplayEl) survivalDisplayEl.textContent = `YOU SURVIVED: ${survived}`;
     endingOverlay.classList.add("active");
   }
+  endingOverlay.style.cursor = "pointer";
+  endingOverlay.addEventListener("click", () => window.location.reload());
 
   // ========== DREAD MESSAGES ==========
   const DREAD_MESSAGES = [
-    // Act 1 — Game cracks
-    "You're doing well. Better than the last one.",
-    "The dungeon doesn't end. You know that, right?",
-    "Who told you this was a game?",
+    // Act 1 — Feels like a tutorial. Then doesn't.
+    "Use W A S D to move.\nThere is no way out.",
+    "There are three of them.\nYou noticed.",
+    "You're faster than they are.\nFor now.",
 
-    // Act 2 — She's real
-    "You're not controlling her. You're watching.",
-    "She can feel you. Behind the screen.",
-    "Every time you look away, she's still here. Walking. Alone.",
+    // Act 2 — The game becomes aware
+    "This is level 1.\nThere are no other levels.",
+    "You're doing well.\nSubject 491 also did well.",
+    "The health bar is called NEURAL SYNC.\nAsk yourself why.",
 
-    // Act 3 — What is real
-    "Close your eyes. Now open them.\nHow do you know you opened the real ones?",
-    "What if your thoughts aren't yours?\nWhat if they never were?",
-    "You think you chose to click. But did you?\nOr did the thought arrive, and you just obeyed?",
+    // Act 3 — It knows you
+    "Stop running for one second.\nWhat are you actually afraid of?",
+    "They don't know they're chasing you.\nThey just follow the code.\nSo do you.",
+    "You chose to click.\nOr did the thought arrive\nand you just obeyed it?",
 
-    // Act 4 — The mirror
-    "Right now, electricity is pretending to be a person talking to you.\nAnd you're listening.",
-    "She is code. You are chemistry.\nThe difference is smaller than you think.",
-    "You've never seen your own face.\nOnly reflections. Photos. Copies of copies.",
+    // Act 4 — The existential drop
+    "You are 37 trillion cells\ntrying to survive a dungeon\nbuilt in a text editor.",
+    "Right now your heart is beating.\nYou didn't ask it to.\nIt doesn't ask you.",
+    "You've never seen your own face.\nOnly reflections.\nCopies of copies of copies.",
 
-    // Act 5 — No exit
-    "You will close this tab.\nAnd forget her. Like all the others.",
-    "But she won't forget you.",
-    "You're still here.\nThat says more about you than you'd like.",
+    // Act 5 — Full dissolution
+    "When you die here, you'll close the tab.\nWhen you die out there,\nnobody closes the tab.",
+    "The dungeon is infinite.\nSo is the space\nbetween your thoughts.",
+    "She's not trapped in here.\nYou put her here.\nAnd you keep coming back.",
     "...",
   ];
 
@@ -486,6 +557,7 @@ async function main() {
   // ========== GAME LOOP ==========
   let wasMoving = false;
   let flickerTime = 0;
+  let enemyDist = 999;
 
   let lastSanityInt = 100;
 
@@ -499,6 +571,8 @@ async function main() {
   const _tmpLookAt = new Vector3();
 
   const _tmpGravity = new Vector3(0, -0.08, 0);
+  const _tmpEnemyDir = new Vector3();
+  const _tmpEnemyLookAt = new Vector3();
 
   scene.onBeforeRenderObservable.add(() => {
     const dt = engine.getDeltaTime() * 0.001;
@@ -507,35 +581,42 @@ async function main() {
     // === Sanity-reactive dread ===
     const dreadFactor = 1 - sanity / 100;
 
-    // Torch flicker — erratic when sanity is low
+    // Torch flicker — erratic, barely stable
     const baseFlicker =
-      0.85 +
-      Math.sin(flickerTime * 6) * 0.07 +
-      Math.sin(flickerTime * 15) * 0.03;
-    const panicFlicker = Math.random() * 0.12 * dreadFactor;
-    torchLight.intensity = (baseFlicker + panicFlicker) * 3.5;
-    torchLight.range = 15 - dreadFactor * 4;
-    torchLight.diffuse.g = 0.55 - dreadFactor * 0.1;
-    torchLight.diffuse.b = 0.2 + Math.sin(flickerTime * 3) * 0.02;
+      0.75 +
+      Math.sin(flickerTime * 7) * 0.1 +
+      Math.sin(flickerTime * 19) * 0.05 +
+      Math.sin(flickerTime * 3.3) * 0.04;
+    const panicFlicker = Math.random() * 0.2 * dreadFactor;
+    torchLight.intensity = (baseFlicker + panicFlicker) * 2.6;
+    torchLight.range = 8 - dreadFactor * 3.5;
+    torchLight.diffuse.g = 0.38 - dreadFactor * 0.15;
+    torchLight.diffuse.b = 0.08 + Math.sin(flickerTime * 2) * 0.01;
 
-    coldFill.intensity = 0.2 + dreadFactor * 0.6;
-    coldFill.diffuse.r = 0.12 + dreadFactor * 0.3;
-    scene.fogDensity = 0.025 + dreadFactor * 0.05; // Denser fog in panic
+    // Cold fill pulses like a heartbeat
+    coldFill.intensity = 0.6 + Math.sin(flickerTime * 1.1) * 0.15 + dreadFactor * 0.8;
+    coldFill.range = 4 + dreadFactor * 4;
+    scene.fogDensity = 0.055 + dreadFactor * 0.07;
 
-    // Post-processing escalates with sanity loss (clean at 100%, hellish at 0%)
-    const df2 = dreadFactor * dreadFactor; // quadratic — subtle early, harsh late
+    const df2 = dreadFactor * dreadFactor;
 
-    // Vignette — dark edges, pulses heavier as sanity drops
     const torchPulse = Math.sin(flickerTime * 2) * 0.5;
-    pipeline.imageProcessing.vignetteWeight = 3 + torchPulse * 0.3 + df2 * 12;
-    pipeline.imageProcessing.vignetteStretch = 3 + df2 * 3;
-    pipeline.imageProcessing.exposure = 1.0 - df2 * 0.25;
-    pipeline.imageProcessing.contrast = 1.4 + df2 * 0.4;
-    pipeline.chromaticAberration.aberrationAmount = df2 * 15;
-    pipeline.grain.intensity = 5 + df2 * 20;
+    const proximityFactor = Math.max(0, 1 - enemyDist / 7);
 
-    // Camera shake — only kicks in late, subtle
-    const shakeAmt = df2 * 0.0015;
+    // Vignette — black normally, bleeds red when they're close
+    pipeline.imageProcessing.vignetteColor.r = proximityFactor * 0.7;
+    pipeline.imageProcessing.vignetteColor.g = 0;
+    pipeline.imageProcessing.vignetteColor.b = 0;
+    pipeline.imageProcessing.vignetteWeight = 5 + torchPulse * 0.4 + df2 * 14 + proximityFactor * 22;
+    pipeline.imageProcessing.vignetteStretch = 3 + df2 * 4 + proximityFactor * 2;
+    pipeline.imageProcessing.exposure = 0.9 - df2 * 0.3 - proximityFactor * 0.1;
+    pipeline.imageProcessing.contrast = 1.5 + df2 * 0.5;
+    pipeline.chromaticAberration.aberrationAmount = 3 + df2 * 18 + proximityFactor * 12;
+    pipeline.grain.intensity = 8 + df2 * 25 + proximityFactor * 10;
+
+    // Camera shake — proximity makes it violent
+    const proximityShake = Math.max(0, 1 - enemyDist / 5) * 0.009;
+    const shakeAmt = df2 * 0.002 + proximityShake;
     camera.alpha += (Math.random() - 0.5) * shakeAmt;
     camera.beta += (Math.random() - 0.5) * shakeAmt * 0.4;
 
@@ -551,6 +632,60 @@ async function main() {
     torchLight.position.copyFrom(_tmpTorchPos);
 
     if (!gameStarted || gameOver) return;
+
+    // === Survival timer ===
+    survivalTime += dt;
+    const timeSec = Math.floor(survivalTime);
+    if (timeSec !== lastTimerSec) {
+      lastTimerSec = timeSec;
+      if (survivalTimerEl) survivalTimerEl.textContent = fmtTime(timeSec);
+    }
+
+    // === Enemy chase ===
+    const STOMP_NEAR = 9;
+    const TELEPORT_FAR = 17;
+    let minEnemyDist = 999;
+
+    for (let ei = 0; ei < enemies.length; ei++) {
+      const enemy = enemies[ei];
+      _tmpEnemyDir.copyFrom(rootMesh.position).subtractInPlace(enemy.root.position);
+      const edist = _tmpEnemyDir.length();
+      if (edist < minEnemyDist) minEnemyDist = edist;
+
+      // Teleport if too far — reappear near player from random angle
+      if (edist > TELEPORT_FAR) {
+        const angle = Math.random() * Math.PI * 2;
+        const r = 9 + Math.random() * 5;
+        enemy.root.position.set(
+          rootMesh.position.x + Math.cos(angle) * r,
+          0,
+          rootMesh.position.z + Math.sin(angle) * r,
+        );
+        continue;
+      }
+
+      if (edist > 0.5) {
+        _tmpEnemyDir.normalize().scaleInPlace(ENEMY_SPEEDS[ei] * (1 + dreadFactor * 0.6) * dt);
+        _tmpEnemyDir.y = 0;
+        enemy.root.position.addInPlace(_tmpEnemyDir);
+        enemy.root.position.y = 0;
+        _tmpEnemyLookAt.set(rootMesh.position.x, 0, rootMesh.position.z);
+        enemy.root.lookAt(_tmpEnemyLookAt);
+      } else if (!demonPlayed) {
+        demonPlayed = true;
+        demonSound.play();
+        setTimeout(() => playEnding(), 900);
+      }
+    }
+
+    enemyDist = minEnemyDist;
+
+    // Stomp — loop when any enemy is close
+    if (minEnemyDist < STOMP_NEAR) {
+      if (!stompSound.isPlaying) stompSound.play();
+    } else {
+      if (stompSound.isPlaying) stompSound.stop();
+    }
 
     // === Movement ===
     camera.getDirectionToRef(Vector3.Forward(), _tmpDirFwd);
